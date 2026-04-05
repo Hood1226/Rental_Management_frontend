@@ -3,11 +3,11 @@ import api from './api'
 export const authService = {
   login: async (identifier, password) => {
     // identifier can be either email or mobile number
-    // Send as identifier - backend should check both email and mobileNumber fields
-    // For backward compatibility, also send as email if it contains @
-    const payload = identifier.includes('@')
-      ? { email: identifier, password }
-      : { mobileNumber: identifier, password }
+    // Send as emailOrMobile to match backend expectation
+    const payload = {
+      emailOrMobile: identifier,
+      password
+    }
     
     const response = await api.post('/auth/login', payload)
     return response.data

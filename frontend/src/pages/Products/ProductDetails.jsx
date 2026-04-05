@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-toastify'
 import { productService } from '../../services/productService'
 import { sizeService } from '../../services/sizeService'
+import { useAuth } from '../../context/AuthContext'
 import { ArrowLeft, Plus, Trash2, ChevronDown, ChevronUp, Save, X } from 'lucide-react'
 import PageContainer from '../../components/common/PageContainer'
 import FormContainer from '../../components/common/FormContainer'
@@ -15,8 +16,16 @@ function ProductDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('PRODUCT_MANAGEMENT', 'CREATE')
+  const canUpdate = hasPermission('PRODUCT_MANAGEMENT', 'UPDATE')
+  const canDelete = hasPermission('PRODUCT_MANAGEMENT', 'DELETE')
   const isEditMode = !!id && id !== 'new'
   const [expandedVariants, setExpandedVariants] = useState(new Set())
+
+  useEffect(() => {
+    if (!isEditMode && !canCreate) navigate('/products')
+  }, [isEditMode, canCreate, navigate])
 
   const { data: sizesData } = useQuery({
     queryKey: ['sizes'],
@@ -39,9 +48,12 @@ function ProductDetails() {
   } = useForm({
     defaultValues: {
       productName: '',
+      productCode: '',
       category: '',
       description: '',
       depositAmount: 0,
+      discountPercent: 0,
+      maxDiscountPercent: 0,
       isForSale: false,
       isForRent: false,
       isActive: true,
@@ -63,9 +75,12 @@ function ProductDetails() {
       const product = productData.data
       reset({
         productName: product.productName || '',
+        productCode: product.productCode || '',
         category: product.category || '',
         description: product.description || '',
         depositAmount: product.depositAmount || 0,
+        discountPercent: product.discountPercent || 0,
+        maxDiscountPercent: product.maxDiscountPercent || 0,
         isForSale: product.isForSale || false,
         isForRent: product.isForRent || false,
         isActive: product.isActive !== undefined ? product.isActive : true,
@@ -93,9 +108,12 @@ function ProductDetails() {
     } else if (!isEditMode) {
       reset({
         productName: '',
+        productCode: '',
         category: '',
         description: '',
         depositAmount: 0,
+        discountPercent: 0,
+        maxDiscountPercent: 0,
         isForSale: false,
         isForRent: false,
         isActive: true,
@@ -133,7 +151,9 @@ function ProductDetails() {
   })
 
   const onSubmit = (data) => {
-    mutation.mutate(data)
+    const payload = { ...data }
+    delete payload.productCode
+    mutation.mutate(payload)
   }
 
   const deleteMutation = useMutation({
@@ -248,6 +268,45 @@ function ProductDetails() {
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
               />
             </div>
+            {isEditMode && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Product Code
+                </label>
+                <input
+                  type="text"
+                  {...register('productCode')}
+                  readOnly
+                  className="w-full px-3 py-2 text-sm border border-gray-200 bg-gray-100 rounded-lg text-gray-700"
+                />
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                Discount %
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                {...register('discountPercent', { valueAsNumber: true })}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                Max Discount %
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                {...register('maxDiscountPercent', { valueAsNumber: true })}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+              />
+            </div>
           </div>
 
           <div>
@@ -293,14 +352,16 @@ function ProductDetails() {
         <div className="space-y-2 pt-3 border-t border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-sm font-semibold text-gray-800">Product Variants</h4>
-            <button
-              type="button"
-              onClick={addVariant}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-all shadow-sm"
-            >
-              <Plus size={14} />
-              <span>Add Variant</span>
-            </button>
+            {(canCreate || canUpdate) && (
+              <button
+                type="button"
+                onClick={addVariant}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-all shadow-sm"
+              >
+                <Plus size={14} />
+                <span>Add Variant</span>
+              </button>
+            )}
           </div>
 
           {fields.length === 0 ? (
@@ -361,19 +422,21 @@ function ProductDetails() {
                         )}
                       </button>
                       <div className="flex items-center space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            remove(index)
-                            const newExpanded = new Set(expandedVariants)
-                            newExpanded.delete(index)
-                            setExpandedVariants(newExpanded)
-                          }}
-                          className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-all"
-                          title="Delete variant"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {(canUpdate || canDelete) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              remove(index)
+                              const newExpanded = new Set(expandedVariants)
+                              newExpanded.delete(index)
+                              setExpandedVariants(newExpanded)
+                            }}
+                            className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-all"
+                            title="Delete variant"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => toggleVariant(index)}
@@ -571,7 +634,7 @@ function ProductDetails() {
         </div>
 
         <div className="flex flex-col sm:flex-row justify-end gap-2 pt-3 border-t border-gray-200">
-          {isEditMode && (
+          {isEditMode && canDelete && (
             <button
               type="button"
               onClick={handleDelete}
@@ -590,22 +653,24 @@ function ProductDetails() {
             <X size={14} />
             <span>Cancel</span>
           </button>
-          <button
-            type="submit"
-            disabled={mutation.isPending}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 text-sm font-medium transition-all shadow-sm hover:shadow"
-          >
-            <Save size={14} />
-            <span>
-              {mutation.isPending
-                ? isEditMode
-                  ? 'Updating...'
-                  : 'Creating...'
-                : isEditMode
-                ? 'Update Product'
-                : 'Create Product'}
-            </span>
-          </button>
+          {((isEditMode && canUpdate) || (!isEditMode && canCreate)) && (
+            <button
+              type="submit"
+              disabled={mutation.isPending}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 text-sm font-medium transition-all shadow-sm hover:shadow"
+            >
+              <Save size={14} />
+              <span>
+                {mutation.isPending
+                  ? isEditMode
+                    ? 'Updating...'
+                    : 'Creating...'
+                  : isEditMode
+                  ? 'Update Product'
+                  : 'Create Product'}
+              </span>
+            </button>
+          )}
         </div>
         </FormContainer>
       </form>

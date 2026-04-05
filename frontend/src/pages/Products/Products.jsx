@@ -1,12 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { productService } from '../../services/productService'
+import { useAuth } from '../../context/AuthContext'
 import { Edit, Eye } from 'lucide-react'
 import DataGrid from '../../components/DataGrid'
 import PageContainer from '../../components/common/PageContainer'
 
 function Products() {
   const navigate = useNavigate()
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('PRODUCT_MANAGEMENT', 'CREATE')
+  const canUpdate = hasPermission('PRODUCT_MANAGEMENT', 'UPDATE')
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['products'],
@@ -32,6 +36,10 @@ function Products() {
 
   const columns = [
     {
+      header: 'Code',
+      accessor: (row) => row.productCode || '-',
+    },
+    {
       header: 'Product Name',
       accessor: 'productName',
     },
@@ -42,6 +50,10 @@ function Products() {
     {
       header: 'Deposit Amount',
       accessor: (row) => `₹${row.depositAmount || 0}`,
+    },
+    {
+      header: 'Discount',
+      accessor: (row) => `${row.discountPercent || 0}% (max ${row.maxDiscountPercent || 0}%)`,
     },
     {
       header: 'For Sale/Rent',
@@ -91,6 +103,7 @@ function Products() {
   ]
 
   const searchFields = [
+    (row) => row.productCode,
     (row) => row.productName,
     (row) => row.category,
   ]
@@ -100,8 +113,8 @@ function Products() {
       <DataGrid
         data={products}
         columns={columns}
-        onAdd={handleCreate}
-        onEdit={handleEdit}
+        onAdd={canCreate ? handleCreate : undefined}
+        onEdit={canUpdate ? handleEdit : undefined}
         onView={handleView}
         searchPlaceholder="Search by product name or category..."
         searchFields={searchFields}
@@ -116,13 +129,15 @@ function Products() {
             >
               <Eye size={18} />
             </button>
-            <button
-              onClick={() => handleEdit(row)}
-              className="text-primary-600 hover:text-primary-900"
-              title="Edit"
-            >
-              <Edit size={18} />
-            </button>
+            {canUpdate && (
+              <button
+                onClick={() => handleEdit(row)}
+                className="text-primary-600 hover:text-primary-900"
+                title="Edit"
+              >
+                <Edit size={18} />
+              </button>
+            )}
           </div>
         )}
       />

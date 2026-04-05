@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { customerService } from '../../services/customerService'
+import { useAuth } from '../../context/AuthContext'
 import { Edit, Eye } from 'lucide-react'
 import CustomerModal from '../../components/CustomerModal'
 import DataGrid from '../../components/DataGrid'
@@ -9,6 +10,9 @@ import PageContainer from '../../components/common/PageContainer'
 function Customers() {
   const [showModal, setShowModal] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState(null)
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('CUSTOMER_MANAGEMENT', 'CREATE')
+  const canUpdate = hasPermission('CUSTOMER_MANAGEMENT', 'UPDATE')
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['customers'],
@@ -84,8 +88,8 @@ function Customers() {
         title="Customers"
         data={customers}
         columns={columns}
-        onAdd={handleCreate}
-        onEdit={handleEdit}
+        onAdd={canCreate ? handleCreate : undefined}
+        onEdit={canUpdate ? handleEdit : undefined}
         onView={handleView}
         searchPlaceholder="Search customers by name, email, or phone..."
         searchFields={searchFields}
@@ -101,13 +105,15 @@ function Customers() {
             >
               <Eye size={18} />
             </button>
-            <button
-              onClick={() => handleEdit(row)}
-              className="text-primary-600 hover:text-primary-900"
-              title="Edit"
-            >
-              <Edit size={18} />
-            </button>
+            {canUpdate && (
+              <button
+                onClick={() => handleEdit(row)}
+                className="text-primary-600 hover:text-primary-900"
+                title="Edit"
+              >
+                <Edit size={18} />
+              </button>
+            )}
           </div>
         )}
       />

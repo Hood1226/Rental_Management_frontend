@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { bookingService } from '../../services/bookingService'
+import { useAuth } from '../../context/AuthContext'
 import { Edit, Eye } from 'lucide-react'
 import { format } from 'date-fns'
 import DataGrid from '../../components/DataGrid'
@@ -8,6 +9,9 @@ import PageContainer from '../../components/common/PageContainer'
 
 function Bookings() {
   const navigate = useNavigate()
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('BOOKING_MANAGEMENT', 'CREATE')
+  const canUpdate = hasPermission('BOOKING_MANAGEMENT', 'UPDATE')
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['bookings'],
@@ -55,7 +59,7 @@ function Bookings() {
   const columns = [
     {
       header: 'Booking ID',
-      accessor: (row) => `#${row.bookingId}`,
+      accessor: (row) => row.bookingNo || `#${row.bookingId}`,
     },
     {
       header: 'Customer',
@@ -69,6 +73,10 @@ function Bookings() {
           {row.bookingType}
         </span>
       ),
+    },
+    {
+      header: 'Shop / Branch',
+      accessor: (row) => `${row.shopName || '-'} / ${row.branchName || '-'}`,
     },
     {
       header: 'Booking Date',
@@ -101,8 +109,11 @@ function Bookings() {
   ]
 
   const searchFields = [
+    (row) => row.bookingNo,
     (row) => row.bookingId?.toString(),
     (row) => row.customerName,
+    (row) => row.shopName,
+    (row) => row.branchName,
     (row) => row.bookingType,
     (row) => row.status,
   ]
@@ -113,8 +124,8 @@ function Bookings() {
         title="Bookings"
         data={bookings}
         columns={columns}
-        onAdd={handleCreate}
-        onEdit={handleEdit}
+        onAdd={canCreate ? handleCreate : undefined}
+        onEdit={canUpdate ? handleEdit : undefined}
         onView={handleView}
         searchPlaceholder="Search by booking ID, customer, type, or status..."
         searchFields={searchFields}
@@ -130,13 +141,15 @@ function Bookings() {
             >
               <Eye size={18} />
             </button>
-            <button
-              onClick={() => handleEdit(row)}
-              className="text-primary-600 hover:text-primary-900"
-              title="Edit"
-            >
-              <Edit size={18} />
-            </button>
+            {canUpdate && (
+              <button
+                onClick={() => handleEdit(row)}
+                className="text-primary-600 hover:text-primary-900"
+                title="Edit"
+              >
+                <Edit size={18} />
+              </button>
+            )}
           </div>
         )}
       />

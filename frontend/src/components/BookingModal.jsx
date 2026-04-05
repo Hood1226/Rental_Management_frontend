@@ -57,6 +57,9 @@ function BookingModal({ isOpen, onClose, booking = null }) {
       bookingType: 'RENT',
       status: 'PENDING',
       totalAmount: 0,
+      isAdvanceBooking: false,
+      scheduledDate: '',
+      advancePaymentAmount: 0,
       items: [{ variantId: '', quantity: 1, unitPrice: 0, rentalStart: '', rentalEnd: '', subtotal: 0 }],
     },
   })
@@ -68,6 +71,7 @@ function BookingModal({ isOpen, onClose, booking = null }) {
 
   const bookingType = watch('bookingType')
   const items = watch('items')
+  const isAdvanceBooking = watch('isAdvanceBooking')
 
   useEffect(() => {
     if (booking) {
@@ -76,6 +80,9 @@ function BookingModal({ isOpen, onClose, booking = null }) {
         bookingType: booking.bookingType || 'RENT',
         status: booking.status || 'PENDING',
         totalAmount: booking.totalAmount || 0,
+        isAdvanceBooking: !!booking.isAdvanceBooking,
+        scheduledDate: booking.scheduledDate || '',
+        advancePaymentAmount: booking.advancePaymentAmount ?? 0,
         items: booking.items && booking.items.length > 0
           ? booking.items.map(item => ({
               variantId: item.variantId || '',
@@ -94,6 +101,9 @@ function BookingModal({ isOpen, onClose, booking = null }) {
         bookingType: 'RENT',
         status: 'PENDING',
         totalAmount: 0,
+        isAdvanceBooking: false,
+        scheduledDate: '',
+        advancePaymentAmount: 0,
         items: [{ variantId: '', quantity: 1, unitPrice: 0, rentalStart: '', rentalEnd: '', subtotal: 0 }],
       })
       setSelectedCustomer(null)
@@ -238,6 +248,38 @@ function BookingModal({ isOpen, onClose, booking = null }) {
               <option value="CANCELLED">Cancelled</option>
             </select>
           </div>
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                {...register('isAdvanceBooking')}
+                className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm font-medium text-gray-700">Advance booking</span>
+            </label>
+            {isAdvanceBooking && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Scheduled date</label>
+                  <input
+                    type="date"
+                    {...register('scheduledDate')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Advance payment (₹)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    {...register('advancePaymentAmount', { valueAsNumber: true, min: 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         <div>
@@ -371,13 +413,36 @@ function BookingModal({ isOpen, onClose, booking = null }) {
           ))}
         </div>
 
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex justify-between items-center">
-            <span className="text-lg font-semibold text-gray-700">Total Amount:</span>
-            <span className="text-xl font-bold text-primary-600">
-              ₹{watch('totalAmount')?.toFixed(2) || '0.00'}
-            </span>
-          </div>
+        <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+          {isAdvanceBooking ? (
+            <>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-semibold text-gray-700">Advance payment:</span>
+                <span className="text-base font-bold text-green-700">
+                  ₹{(Number(watch('advancePaymentAmount')) || 0).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center border-t border-gray-200 pt-2">
+                <span className="text-sm font-semibold text-gray-700">Balance to pay:</span>
+                <span className="text-base font-bold text-amber-700">
+                  ₹{Math.max(0, (Number(watch('totalAmount')) || 0) - (Number(watch('advancePaymentAmount')) || 0)).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center border-t border-gray-200 pt-2">
+                <span className="text-lg font-semibold text-gray-700">Total:</span>
+                <span className="text-xl font-bold text-primary-600">
+                  ₹{watch('totalAmount')?.toFixed(2) || '0.00'}
+                </span>
+              </div>
+            </>
+          ) : (
+            <div className="flex justify-between items-center">
+              <span className="text-lg font-semibold text-gray-700">Total Amount:</span>
+              <span className="text-xl font-bold text-primary-600">
+                ₹{watch('totalAmount')?.toFixed(2) || '0.00'}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end space-x-3 pt-4">
